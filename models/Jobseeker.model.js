@@ -11,17 +11,18 @@ const jobseekerSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: true,
+    required: [true, "Email is required."],
+    unique: true,
+    lowercase: true,
+    trim: true,
   },
   password: {
     type: String,
     required: true,
   },
-
   profilePicture: {
     type: String,
   },
-
   purchasedPackages: {
     type: Number,
     enum: [3, 5, 7],
@@ -39,6 +40,13 @@ const jobseekerSchema = new mongoose.Schema({
     type: Number,
   },
 });
+
+// JSON exclude the password field??
+jobseekerSchema.methods.toJSON = function () {
+  const userObject = this.toObject();
+  delete userObject.password;
+  return userObject;
+};
 
 const Jobseeker = mongoose.model("Jobseeker", jobseekerSchema);
 

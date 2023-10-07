@@ -21,6 +21,12 @@ require("./config")(app);
 const consultantRoutes = require("./routes/consultant.routes");
 app.use("/api", consultantRoutes);
 
+const jobSeekerRoutes = require("./routes/jobseeker.routes");
+app.use("/api", jobSeekerRoutes);
+
+//const consultantRoutes = require("./routes/consultant.routes");
+//app.use("/api", consultantRoutes);
+
 const indexRoutes = require("./routes/index.routes");
 app.use("/api", indexRoutes);
 
