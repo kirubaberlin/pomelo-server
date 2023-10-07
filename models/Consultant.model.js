@@ -19,7 +19,6 @@ const consultantSchema = new mongoose.Schema({
   },
   introductionVideoUrl: {
     type: String,
-    required: true,
   },
   availablePackages: [
     {

@@ -15,6 +15,12 @@ const app = express();
 require("./config")(app);
 
 // 👇 Start handling routes here
+// const jobSeekerRoutes = require("./routes/jobseeker.routes");
+// app.use("/api", jobSeekerRoutes);
+
+const consultantRoutes = require("./routes/consultant.routes");
+app.use("/api", consultantRoutes);
+
 const jobSeekerRoutes = require("./routes/jobseeker.routes");
 app.use("/api", jobSeekerRoutes);
 
