@@ -1,3 +1,4 @@
+//auth.routes.js
 const express = require("express");
 const router = express.Router();
 
@@ -9,6 +10,7 @@ const jwt = require("jsonwebtoken");
 
 // Require the User model in order to interact with the database
 const User = require("../models/User.model");
+const Consultant = require("../models/Consultant.model");
 
 // Require necessary (isAuthenticated) middleware in order to control access to specific routes
 const { isAuthenticated } = require("../middleware/jwt.middleware.js");
@@ -116,6 +118,76 @@ router.post("/login", (req, res, next) => {
       }
     })
     .catch((err) => next(err)); // In this case, we send error handling to the error handling middleware.
+});
+
+// POST /auth/jobseeker/login - Sign in as a job seeker
+router.post("/jobseeker/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    // Find the job seeker by email
+    const jobSeeker = await JobSeeker.findOne({ email });
+
+    if (!jobSeeker) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    // Compare the provided password with the stored password hash
+    const passwordMatch = await bcrypt.compare(password, jobSeeker.password);
+
+    if (!passwordMatch) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    // Create a JWT token for the job seeker
+    const token = jwt.sign({ _id: jobSeeker._id }, process.env.TOKEN_SECRET, {
+      expiresIn: "6h",
+    });
+
+    // Omit the password from the job seeker object
+    const jobSeekerWithoutPassword = { ...jobSeeker._doc };
+    delete jobSeekerWithoutPassword.password;
+
+    // Send the token and job seeker information in the response
+    res.status(200).json({ token, jobSeeker: jobSeekerWithoutPassword });
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// POST /auth/consultant/login - Sign in as a consultant
+router.post("/consultant/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    // Find the consultant by email
+    const consultant = await Consultant.findOne({ email });
+
+    if (!consultant) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    // Compare the provided password with the stored password hash
+    const passwordMatch = await bcrypt.compare(password, consultant.password);
+
+    if (!passwordMatch) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    // Create a JWT token for the consultant
+    const token = jwt.sign({ _id: consultant._id }, process.env.TOKEN_SECRET, {
+      expiresIn: "6h",
+    });
+
+    // Omit the password from the consultant object
+    const consultantWithoutPassword = { ...consultant._doc };
+    delete consultantWithoutPassword.password;
+
+    // Send the token and consultant information in the response
+    res.status(200).json({ token, consultant: consultantWithoutPassword });
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 // GET  /auth/verify  -  Used to verify JWT stored on the client
