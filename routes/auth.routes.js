@@ -14,16 +14,17 @@ const Consultant = require("../models/Consultant.model");
 
 // Require necessary (isAuthenticated) middleware in order to control access to specific routes
 const { isAuthenticated } = require("../middleware/jwt.middleware.js");
+const Jobseeker = require("../models/Jobseeker.model");
 
 // How many rounds should bcrypt run the salt (default - 10 rounds)
 const saltRounds = 10;
 
 // POST /auth/signup  - Creates a new user in the database
 router.post("/signup", (req, res, next) => {
-  const { email, password, name } = req.body;
+  const { email, password, firstName, lastName } = req.body;
 
   // Check if email or password or name are provided as empty strings
-  if (email === "" || password === "" || name === "") {
+  if (email === "" || password === "" || firstName === "" || lastName === "") {
     res.status(400).json({ message: "Provide email, password and name" });
     return;
   }
@@ -60,15 +61,20 @@ router.post("/signup", (req, res, next) => {
 
       // Create the new user in the database
       // We return a pending promise, which allows us to chain another `then`
-      return User.create({ email, password: hashedPassword, name });
+      return User.create({
+        email,
+        password: hashedPassword,
+        firstName,
+        lastName,
+      });
     })
     .then((createdUser) => {
       // Deconstruct the newly created user object to omit the password
       // We should never expose passwords publicly
-      const { email, name, _id } = createdUser;
+      const { email, firstName, lastName, _id } = createdUser;
 
       // Create a new object that doesn't expose the password
-      const user = { email, name, _id };
+      const user = { email, firstName, lastName, _id };
 
       // Send a json response containing the user object
       res.status(201).json({ user: user });
@@ -126,30 +132,30 @@ router.post("/jobseeker/login", async (req, res) => {
 
   try {
     // Find the job seeker by email
-    const jobSeeker = await JobSeeker.findOne({ email });
+    const jobseeker = await Jobseeker.findOne({ email });
 
-    if (!jobSeeker) {
+    if (!jobseeker) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
     // Compare the provided password with the stored password hash
-    const passwordMatch = await bcrypt.compare(password, jobSeeker.password);
+    const passwordMatch = await bcrypt.compare(password, jobseeker.password);
 
     if (!passwordMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
     // Create a JWT token for the job seeker
-    const token = jwt.sign({ _id: jobSeeker._id }, process.env.TOKEN_SECRET, {
+    const token = jwt.sign({ _id: jobseeker._id }, process.env.TOKEN_SECRET, {
       expiresIn: "6h",
     });
 
     // Omit the password from the job seeker object
-    const jobSeekerWithoutPassword = { ...jobSeeker._doc };
+    const jobSeekerWithoutPassword = { ...jobseeker._doc };
     delete jobSeekerWithoutPassword.password;
 
     // Send the token and job seeker information in the response
-    res.status(200).json({ token, jobSeeker: jobSeekerWithoutPassword });
+    res.status(200).json({ token, jobseeker: jobSeekerWithoutPassword });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
