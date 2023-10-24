@@ -11,6 +11,11 @@ const express = require("express");
 
 const app = express();
 
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./swagger");
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 // ℹ️ This function is getting exported from the config folder. It runs most pieces of middleware
 require("./config")(app);
 

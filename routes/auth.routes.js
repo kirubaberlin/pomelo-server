@@ -1,209 +1,149 @@
-//auth.routes.js
 const express = require("express");
 const router = express.Router();
 
-// ℹ️ Handles password encryption
 const bcrypt = require("bcrypt");
-
-// ℹ️ Handles password encryption
 const jwt = require("jsonwebtoken");
 
-// Require the User model in order to interact with the database
 const User = require("../models/User.model");
 const Consultant = require("../models/Consultant.model");
-
-// Require necessary (isAuthenticated) middleware in order to control access to specific routes
-const { isAuthenticated } = require("../middleware/jwt.middleware.js");
 const Jobseeker = require("../models/Jobseeker.model");
 
-// How many rounds should bcrypt run the salt (default - 10 rounds)
+const { isAuthenticated } = require("../middleware/jwt.middleware.js");
+const Booking = require("../models/Booking.model");
+
 const saltRounds = 10;
 
-// POST /auth/signup  - Creates a new user in the database
+// POST /auth/signup - Creates a new user in the database
 router.post("/signup", (req, res, next) => {
-  const { email, password, firstName, lastName } = req.body;
-
-  // Check if email or password or name are provided as empty strings
-  if (email === "" || password === "" || firstName === "" || lastName === "") {
-    res.status(400).json({ message: "Provide email, password and name" });
-    return;
-  }
-
-  // This regular expression check that the email is of a valid format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-  if (!emailRegex.test(email)) {
-    res.status(400).json({ message: "Provide a valid email address." });
-    return;
-  }
-
-  // This regular expression checks password for special characters and minimum length
-  const passwordRegex = /(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}/;
-  if (!passwordRegex.test(password)) {
-    res.status(400).json({
-      message:
-        "Password must have at least 6 characters and contain at least one number, one lowercase and one uppercase letter.",
-    });
-    return;
-  }
-
-  // Check the users collection if a user with the same email already exists
-  User.findOne({ email })
-    .then((foundUser) => {
-      // If the user with the same email already exists, send an error response
-      if (foundUser) {
-        res.status(400).json({ message: "User already exists." });
-        return;
-      }
-
-      // If email is unique, proceed to hash the password
-      const salt = bcrypt.genSaltSync(saltRounds);
-      const hashedPassword = bcrypt.hashSync(password, salt);
-
-      // Create the new user in the database
-      // We return a pending promise, which allows us to chain another `then`
-      return User.create({
-        email,
-        password: hashedPassword,
-        firstName,
-        lastName,
-      });
-    })
-    .then((createdUser) => {
-      // Deconstruct the newly created user object to omit the password
-      // We should never expose passwords publicly
-      const { email, firstName, lastName, _id } = createdUser;
-
-      // Create a new object that doesn't expose the password
-      const user = { email, firstName, lastName, _id };
-
-      // Send a json response containing the user object
-      res.status(201).json({ user: user });
-    })
-    .catch((err) => next(err)); // In this case, we send error handling to the error handling middleware.
+  // Your existing signup route code here...
 });
 
-// POST  /auth/login - Verifies email and password and returns a JWT
+// POST /auth/login - Verifies email and password and returns a JWT
 router.post("/login", (req, res, next) => {
-  const { email, password } = req.body;
+  const { email, password, userType } = req.body;
 
-  // Check if email or password are provided as empty string
-  if (email === "" || password === "") {
-    res.status(400).json({ message: "Provide email and password." });
-    return;
+  if (!userType || !["consultant", "jobseeker"].includes(userType)) {
+    return res.status(400).json({
+      message: "Invalid userType. It should be 'consultant' or 'jobseeker'.",
+    });
   }
 
-  // Check the users collection if a user with the same email exists
-  User.findOne({ email })
+  if (!email || !password) {
+    return res.status(400).json({ message: "Provide email and password." });
+  }
+
+  const userModel = userType === "consultant" ? Consultant : Jobseeker;
+
+  userModel
+    .findOne({ email })
     .then((foundUser) => {
       if (!foundUser) {
-        // If the user is not found, send an error response
-        res.status(401).json({ message: "User not found." });
-        return;
+        return res.status(401).json({ message: "Invalid email or password." });
       }
 
-      // Compare the provided password with the one saved in the database
       const passwordCorrect = bcrypt.compareSync(password, foundUser.password);
 
-      if (passwordCorrect) {
-        // Deconstruct the user object to omit the password
-        const { _id, email, name } = foundUser;
+      if (!passwordCorrect) {
+        return res.status(401).json({ message: "Invalid email or password." });
+      }
 
-        // Create an object that will be set as the token payload
-        const payload = { _id, email, name };
+      const { _id, email, name } = foundUser;
+      const payload = { _id, email, name, userType }; // Include userType in the payload
 
-        // Create a JSON Web Token and sign it
-        const authToken = jwt.sign(payload, process.env.TOKEN_SECRET, {
-          algorithm: "HS256",
-          expiresIn: "6h",
-        });
+      const authToken = jwt.sign(payload, process.env.TOKEN_SECRET, {
+        algorithm: "HS256",
+        expiresIn: "6h",
+      });
 
-        // Send the token as the response
-        res.status(200).json({ authToken: authToken });
+      res.status(200).json({ authToken });
+    })
+    .catch((err) => next(err));
+});
+// GET /profile/consultant - Get consultant profile
+router.get("/consultant/profile", isAuthenticated, (req, res) => {
+  // req.payload contains the user information from the JWT
+  const consultantId = req.payload._id;
+
+  // Define an object to store both consultant and bookings
+  const profileData = {};
+
+  Consultant.findById(consultantId)
+    .select("-password")
+    .then((consultant) => {
+      if (!consultant) {
+        return res.status(404).json({ message: "Consultant not found." });
+      }
+
+      // Store the consultant's data in the profileData object
+      profileData.consultant = consultant;
+
+      // Find bookings associated with the consultant
+      return Booking.find({ consultant: consultantId });
+    })
+    .then((bookings) => {
+      // Store the consultant's bookings in the profileData object
+      profileData.bookings = bookings;
+
+      // Send the profileData object as the response
+      res.status(200).json(profileData);
+    })
+    .catch((error) => {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error." });
+    });
+});
+// GET /profile/jobseeker - Get consultant profile
+
+// GET jobseeker's profile with booked sessions
+router.get("/jobseeker/profile", isAuthenticated, (req, res) => {
+  const jobseekerId = req.payload._id; // Assuming the job seeker's ID is in req.payload
+
+  Booking.find({ jobseeker: jobseekerId })
+    .populate("consultant", "firstName lastName") // Populate the consultant information
+    .exec()
+    .then((bookings) => {
+      if (bookings.length === 0) {
+        // Handle case where no bookings are found
+        res
+          .status(200)
+          .json({ message: "No bookings found for this jobseeker." });
       } else {
-        res.status(401).json({ message: "Unable to authenticate the user" });
+        res.status(200).json({ bookings });
       }
     })
-    .catch((err) => next(err)); // In this case, we send error handling to the error handling middleware.
-});
-
-// POST /auth/jobseeker/login - Sign in as a job seeker
-router.post("/jobseeker/login", async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    // Find the job seeker by email
-    const jobseeker = await Jobseeker.findOne({ email });
-
-    if (!jobseeker) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-
-    // Compare the provided password with the stored password hash
-    const passwordMatch = await bcrypt.compare(password, jobseeker.password);
-
-    if (!passwordMatch) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-
-    // Create a JWT token for the job seeker
-    const token = jwt.sign({ _id: jobseeker._id }, process.env.TOKEN_SECRET, {
-      expiresIn: "6h",
+    .catch((error) => {
+      res.status(500).json({ message: "Internal server error." });
     });
-
-    // Omit the password from the job seeker object
-    const jobSeekerWithoutPassword = { ...jobseeker._doc };
-    delete jobSeekerWithoutPassword.password;
-
-    // Send the token and job seeker information in the response
-    res.status(200).json({ token, jobseeker: jobSeekerWithoutPassword });
-  } catch (error) {
-    res.status(500).json({ error: "Internal server error" });
-  }
 });
 
-// POST /auth/consultant/login - Sign in as a consultant
-router.post("/consultant/login", async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    // Find the consultant by email
-    const consultant = await Consultant.findOne({ email });
-
-    if (!consultant) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-
-    // Compare the provided password with the stored password hash
-    const passwordMatch = await bcrypt.compare(password, consultant.password);
-
-    if (!passwordMatch) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-
-    // Create a JWT token for the consultant
-    const token = jwt.sign({ _id: consultant._id }, process.env.TOKEN_SECRET, {
-      expiresIn: "6h",
-    });
-
-    // Omit the password from the consultant object
-    const consultantWithoutPassword = { ...consultant._doc };
-    delete consultantWithoutPassword.password;
-
-    // Send the token and consultant information in the response
-    res.status(200).json({ token, consultant: consultantWithoutPassword });
-  } catch (error) {
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// GET  /auth/verify  -  Used to verify JWT stored on the client
+// GET /auth/verify - Used to verify JWT stored on the client
 router.get("/verify", isAuthenticated, (req, res, next) => {
-  // If JWT token is valid the payload gets decoded by the
-  // isAuthenticated middleware and is made available on `req.payload`
-  // console.log(`req.payload`, req.payload);
-
-  // Send back the token payload object containing the user data
   res.status(200).json(req.payload);
+});
+
+//const ZegoSDK = require("zego-sdk"); // Your Zego SDK
+
+// Define your Zego app ID and secret
+const ZEGO_APP_ID = "331314442";
+const ZEGO_APP_SECRET = "77dd5f51a25fdc6bdd8e899bff9417ca";
+
+// Define a route for generating Zego tokens
+router.post("/generate-zego-token", (req, res) => {
+  // Get the user's ID from the request (you should implement proper user authentication)
+  const userID = req.body.userID;
+
+  // Generate a Zego token using the Zego SDK and your app ID/secret
+  const tokenPayload = {
+    app_id: ZEGO_APP_ID,
+    user_id: userID,
+    // Other token payload data as required
+  };
+
+  // Sign the payload using your Zego secret
+  const token = jwt.sign(tokenPayload, ZEGO_APP_SECRET);
+
+  // Send the generated token as a response
+  res.json({ token });
 });
 
 module.exports = router;
