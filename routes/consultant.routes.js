@@ -2,7 +2,9 @@ const express = require("express");
 const router = express.Router();
 const Consultant = require("../models/Consultant.model");
 const bcrypt = require("bcrypt");
+const { isAuthenticated } = require("../middleware/jwt.middleware.js");
 const jwt = require("jsonwebtoken");
+const Booking = require("../models/Booking.model");
 
 // Route for creating or registering new consultants
 router.post("/consultant", async (req, res) => {
@@ -57,6 +59,52 @@ router.get("/consultants", async (req, res) => {
     res.status(200).json({ consultants });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+///
+
+// // GET /profile/consultant - Get consultant profile
+router.get("/consultant/profile", isAuthenticated, async (req, res) => {
+  const consultantId = req.payload._id;
+
+  try {
+    const consultant = await Consultant.findById(consultantId).select(
+      "-password"
+    );
+
+    if (!consultant) {
+      return res.status(404).json({ message: "Consultant not found." });
+    }
+
+    const profileData = {
+      consultant: {
+        firstName: consultant.firstName,
+        lastName: consultant.lastName,
+        // Add other consultant data you want to include
+      },
+    };
+
+    const bookings = await Booking.find({ consultant: consultantId })
+      .populate("jobseeker", "firstName lastName")
+      .exec();
+
+    profileData.bookings = bookings.map((booking) => ({
+      jobseeker: booking.jobseeker
+        ? `${booking.jobseeker.firstName} ${booking.jobseeker.lastName}`
+        : "Unknown Jobseeker",
+      sessionDate: booking.sessionDate
+        ? new Date(booking.sessionDate).toLocaleString()
+        : "Unknown Date",
+      packageType: booking.packageType,
+      paymentStatus: booking.paymentStatus,
+      zoomMeetingLink: booking.zoomMeetingLink,
+    }));
+
+    res.status(200).json(profileData);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error." });
   }
 });
 

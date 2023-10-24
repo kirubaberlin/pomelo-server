@@ -17,6 +17,9 @@ const consultantSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  ConsultantBio: {
+    type: String,
+  },
   introductionVideoUrl: {
     type: String,
   },
