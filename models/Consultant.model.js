@@ -17,6 +17,18 @@ const consultantSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  profilePicture: {
+    type: String,
+    required: true,
+  },
+  coverPicture: {
+    type: String,
+    required: true,
+  },
+  cv: {
+    type: String,
+    required: true,
+  },
   introductionVideoUrl: {
     type: String,
   },
