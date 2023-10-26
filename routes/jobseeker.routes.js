@@ -29,21 +29,39 @@ router.post("/jobseeker", async (req, res) => {
 });
 
 // GET /profile/jobseeker - Get consultant profile
-router.get("/jobseeker/profile", isAuthenticated, (req, res) => {
+// router.get("/jobseeker/profile", isAuthenticated, (req, res) => {
+//   // req.payload contains the user information from the JWT
+//   const jobseekerId = req.payload._id;
+
+//   Jobseeker.findById(jobseekerId)
+//     .select("-password")
+//     .then((jobSeeker) => {
+//       if (!jobSeeker) {
+//         return res.status(404).json({ message: "jobseeker not found." });
+//       }
+//       res.status(200).json(jobSeeker);
+//     })
+//     .catch((error) => {
+//       res.status(500).json({ message: "Internal server error." });
+//     });
+// });
+
+router.get("/jobseeker/profile", isAuthenticated, async (req, res) => {
   // req.payload contains the user information from the JWT
   const jobseekerId = req.payload._id;
 
-  Jobseeker.findById(jobseekerId)
-    .select("-password")
-    .then((jobSeeker) => {
-      if (!jobSeeker) {
-        return res.status(404).json({ message: "jobseeker not found." });
-      }
-      res.status(200).json(jobSeeker);
-    })
-    .catch((error) => {
-      res.status(500).json({ message: "Internal server error." });
-    });
+  try {
+    const jobSeeker = await Jobseeker.findById(jobseekerId).select("-password");
+
+    if (!jobSeeker) {
+      return res.status(404).json({ message: "Jobseeker not found." });
+    }
+
+    // Return an object with a 'jobSeeker' property
+    res.status(200).json({ jobSeeker });
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error." });
+  }
 });
 
 // Get all job seekers

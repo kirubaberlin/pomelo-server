@@ -4,7 +4,6 @@ const bookingSchema = new mongoose.Schema({
   consultant: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Consultant",
-    required: true,
   },
   jobseeker: {
     type: mongoose.Schema.Types.ObjectId,
@@ -20,6 +19,7 @@ const bookingSchema = new mongoose.Schema({
     enum: [3, 5, 7],
     required: true,
   },
+
   paymentStatus: {
     type: String,
     enum: ["Pending", "Paid", "Refunded"],

@@ -5,10 +5,11 @@ const bcrypt = require("bcrypt");
 const { isAuthenticated } = require("../middleware/jwt.middleware.js");
 const jwt = require("jsonwebtoken");
 const Booking = require("../models/Booking.model");
+const fileUploader = require("../config/cloudinary.config");
 
 // Route for creating or registering new consultants
 router.post("/consultant", async (req, res) => {
-  const { firstName, lastName, email, password } = req.body;
+  const { firstName, lastName, email, password, consultantBio } = req.body;
 
   if (!firstName || !lastName || !email || !password) {
     return res.status(400).json({ error: "All fields are required" });
@@ -28,6 +29,7 @@ router.post("/consultant", async (req, res) => {
       firstName,
       lastName,
       email,
+      consultantBio,
       password: hashedPassword,
     });
 
@@ -81,14 +83,19 @@ router.get("/consultant/profile", isAuthenticated, async (req, res) => {
       consultant: {
         firstName: consultant.firstName,
         lastName: consultant.lastName,
+        consultantBio: consultant.consultantBio,
+        profilePicture: consultant.profilePicture,
         // Add other consultant data you want to include
       },
+      bookings: [], // Initialize bookings as an empty array
     };
 
-    const bookings = await Booking.find({ consultant: consultantId })
-      .populate("jobseeker", "firstName lastName")
-      .exec();
+    const bookings = await Booking.find({ consultant: consultantId }).populate({
+      path: "jobseeker",
+      select: "firstName lastName", // Select the needed properties from the jobseeker
+    });
 
+    // Map the bookings and include jobseeker data
     profileData.bookings = bookings.map((booking) => ({
       jobseeker: booking.jobseeker
         ? `${booking.jobseeker.firstName} ${booking.jobseeker.lastName}`
@@ -128,7 +135,14 @@ router.get("/consultant/:id", async (req, res) => {
 // Route for updating a consultant by ID
 router.put("/consultant/:id", async (req, res) => {
   const { id } = req.params;
-  const { firstName, lastName, email, introductionVideoUrl } = req.body;
+  const {
+    firstName,
+    lastName,
+    email,
+    introductionVideoUrl,
+    profilePicture,
+    consultantBio,
+  } = req.body;
 
   try {
     const consultant = await Consultant.findById(id);
@@ -146,8 +160,11 @@ router.put("/consultant/:id", async (req, res) => {
     if (email) {
       consultant.email = email;
     }
-    if (introductionVideoUrl) {
-      consultant.introductionVideoUrl = introductionVideoUrl;
+    if (profilePicture) {
+      consultant.profilePicture = profilePicture;
+    }
+    if (consultantBio) {
+      consultant.consultantBio = consultantBio;
     }
     await consultant.save();
 
@@ -173,5 +190,23 @@ router.delete("/consultant/:id", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+router.post(
+  "/upload",
+  fileUploader.single("profilePicture"),
+  (req, res, next) => {
+    // console.log("file is: ", req.file)
+
+    if (!req.file) {
+      next(new Error("No file uploaded!"));
+      return;
+    }
+
+    // Get the URL of the uploaded file and send it as a response.
+    // 'fileUrl' can be any name, just make sure you remember to use the same when accessing it on the frontend
+
+    res.json({ fileUrl: req.file.path });
+  }
+);
 
 module.exports = router;

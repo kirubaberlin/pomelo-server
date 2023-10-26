@@ -18,21 +18,18 @@ const consultantSchema = new mongoose.Schema({
     required: true,
   },
 
-  ConsultantBio: {
+  consultantBio: {
     type: String,
   },
 
   profilePicture: {
     type: String,
-    required: true,
   },
   coverPicture: {
     type: String,
-    required: true,
   },
   cv: {
     type: String,
-    required: true,
   },
   introductionVideoUrl: {
     type: String,
