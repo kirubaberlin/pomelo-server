@@ -150,27 +150,30 @@ router.post("/booking", isAuthenticated, async (req, res) => {
       return res.status(400).json({ error: "Required fields" });
     }
 
+    if (consultant === jobseeker) {
+      return res
+        .status(400)
+        .json({ error: "You cannot book a session with yourself." });
+    }
+
     const amount = calculatePaymentAmount(packageType);
 
     if (amount <= 0) {
       return res.status(400).json({ error: "Invalid package type" });
     }
-
-    // Create a Payment Intent using Stripe API
+    // Payment Intent using Stripe API
     const paymentIntent = await stripe.paymentIntents.create({
       amount, // Calculated amount based on packageType
       currency: "usd", // Replace with the actual currency
       // Other options
     });
 
-    // Assuming you have a model/schema for bookings, create the booking as follows:
     const newBooking = new Booking({
       consultant,
       jobseeker,
       sessionDate,
       packageType,
       paymentStatus,
-      // Other booking properties
     });
 
     // Save the new booking to the database
