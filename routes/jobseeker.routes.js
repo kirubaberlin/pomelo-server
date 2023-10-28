@@ -48,8 +48,8 @@ router.post("/jobseeker", async (req, res) => {
 
 router.get("/jobseeker/profile", isAuthenticated, async (req, res) => {
   // req.payload contains the user information from the JWT
-  const jobseekerId = req.payload._id;
-
+  const jobseekerId = req.payload?._id;
+  console.log(req.payload);
   try {
     const jobSeeker = await Jobseeker.findById(jobseekerId).select("-password");
 
