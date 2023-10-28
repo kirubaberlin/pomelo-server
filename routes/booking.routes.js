@@ -240,7 +240,7 @@ router.delete("/booking/delete/:id", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
+/*
 router.post("/payment", async (req, res) => {
   const { paymentMethodId, amount, currency } = req.body;
 
@@ -265,7 +265,7 @@ router.post("/payment", async (req, res) => {
     return res.status(400).json({ error: error.message });
   }
 });
-
+*/
 function calculatePaymentAmount(packageType) {
   if (packageType === 3) {
     return 2000; // $20.00 (in cents)
